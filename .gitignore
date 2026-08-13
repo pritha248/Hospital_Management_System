@@ -13,6 +13,7 @@ build/
 # Database dumps / backups
 *.sql
 *.sql.gz
+aiven-ca.pem
 
 # Backend uploaded files
 Backend/uploads/
