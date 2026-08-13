@@ -41,7 +41,7 @@ const AiHubPage = () => {
     setDiagnosisResult(null); // Instantly clear stale result
     setDiagError(null);
     try {
-      const res = await axios.post('${API_URL}/api/ai/differential-diagnosis', { symptoms: symptomsInput });
+      const res = await axios.post(`${API_URL}/api/ai/differential-diagnosis`, { symptoms: symptomsInput });
       if (res.data && res.data.success) {
         setDiagnosisResult(res.data.data);
       } else {
@@ -63,7 +63,7 @@ const AiHubPage = () => {
     setDrugResult(null); // Instantly clear stale result
     setDrugError(null);
     try {
-      const res = await axios.post('${API_URL}/api/ai/drug-interactions', { medications: queryStr, patientId: 1 });
+      const res = await axios.post(`${API_URL}/api/ai/drug-interactions`, { medications: queryStr, patientId: 1 });
       if (res.data && res.data.success) {
         setDrugResult(res.data.data);
       } else {
@@ -83,7 +83,7 @@ const AiHubPage = () => {
     setRiskResult(null); // Instantly clear stale result
     setRiskError(null);
     try {
-      const res = await axios.post('${API_URL}/api/ai/readmission-risk', {
+      const res = await axios.post(`${API_URL}/api/ai/readmission-risk`, {
         age: parseInt(age, 10),
         lengthOfStayDays: parseInt(stayDays, 10),
         previousAdmissionsCount: parseInt(priorAdmissions, 10),
@@ -111,7 +111,7 @@ const AiHubPage = () => {
     setSummaryResult(null); // Instantly clear stale result
     setSummaryError(null);
     try {
-      const res = await axios.post('${API_URL}/api/ai/summarize-history', { text: rawHistoryText });
+      const res = await axios.post(`${API_URL}/api/ai/summarize-history`, { text: rawHistoryText });
       if (res.data && res.data.success) {
         setSummaryResult(res.data.data);
       } else {

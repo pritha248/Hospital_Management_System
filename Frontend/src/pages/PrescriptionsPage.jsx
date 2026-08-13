@@ -68,7 +68,7 @@ const PrescriptionsPage = () => {
 
   const fetchTestCatalog = async () => {
     try {
-      const res = await axios.get('${API_URL}/api/diagnostic-tests');
+      const res = await axios.get(`${API_URL}/api/diagnostic-tests`);
       if (res.data.success) setTestCatalog(res.data.data);
     } catch (err) {
       console.error("Fetch test catalog error:", err);
@@ -114,7 +114,7 @@ const PrescriptionsPage = () => {
       } else if (user.role === 'patient') {
         params.patient_id = patientIdToFetch || user.patientId || user.id;
       }
-      const res = await axios.get('${API_URL}/api/prescriptions', { params });
+      const res = await axios.get(`${API_URL}/api/prescriptions`, { params });
       if (res.data.success) {
         setPrescriptions(res.data.data);
       }
@@ -128,7 +128,7 @@ const PrescriptionsPage = () => {
 
   const fetchPatients = async () => {
     try {
-      const res = await axios.get('${API_URL}/api/patients');
+      const res = await axios.get(`${API_URL}/api/patients`);
       if (res.data.success) {
         const patList = res.data.data || [];
         setPatients(patList);
@@ -183,7 +183,7 @@ const PrescriptionsPage = () => {
       const createdForPatient = String(selectedPatient);
       const selPatObj = patients.find(p => String(p.id) === createdForPatient || String(p.user_id) === createdForPatient);
 
-      const res = await axios.post('${API_URL}/api/prescriptions', {
+      const res = await axios.post(`${API_URL}/api/prescriptions`, {
         appointment_id: selectedAppointmentId || null,
         patient_id: selectedPatient,
         doctor_id: validDoctorId,

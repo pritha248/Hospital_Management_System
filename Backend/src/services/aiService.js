@@ -5,8 +5,19 @@ const db = require("../config/database");
  * Enterprise Backend LLM Completion Client
  * Uses Llama 3.2 1B (llama3.2:1b) or OpenAI API dynamically for fast, accurate inference.
  */
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/api/chat";
-const LLM_MODEL = process.env.LLM_MODEL || "llama3.2:1b";
+const LLM_PROVIDER = (process.env.LLM_PROVIDER || "ollama").toLowerCase();
+
+const OLLAMA_URL =
+  process.env.OLLAMA_URL || "http://localhost:11434/api/chat";
+
+const OLLAMA_MODEL =
+  process.env.LLM_MODEL || "llama3.2:1b";
+
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+
+const OPENAI_MODEL =
+  process.env.OPENAI_MODEL || "gpt-4o-mini";
+
 
 const callLlmApi = async ({ systemPrompt, prompt, jsonMode = false }) => {
   const messages = [
@@ -14,61 +25,112 @@ const callLlmApi = async ({ systemPrompt, prompt, jsonMode = false }) => {
     { role: "user", content: prompt }
   ];
 
-  // 1. Try Local Ollama / Backend LLM API
-  try {
-    const response = await axios.post(
-      OLLAMA_URL,
-      {
-        model: LLM_MODEL,
-        messages,
-        options: {
-          num_predict: 1024,
-          temperature: 0.1
-        },
-        stream: false
-      },
-      { timeout: 90000 }
-    );
+  const provider = (process.env.LLM_PROVIDER || "ollama").toLowerCase();
 
-    if (response.data && response.data.message && response.data.message.content) {
-      const rawText = response.data.message.content.trim();
-
-      if (jsonMode) {
-        return parseJsonFromLlm(rawText);
-      }
-      return rawText;
+  // ============================================================
+  // 1. OPENAI
+  // ============================================================
+  if (provider === "openai") {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("LLM_PROVIDER is set to openai but OPENAI_API_KEY is missing.");
     }
-  } catch (err) {
-    console.warn("Ollama LLM API connection error or timeout:", err.message);
-  }
 
-  // 2. Try OpenAI API if OPENAI_API_KEY is defined in environment
-  if (process.env.OPENAI_API_KEY) {
     try {
-      const openAiRes = await axios.post(
+      const response = await axios.post(
         "https://api.openai.com/v1/chat/completions",
         {
-          model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
           messages,
           temperature: 0.2,
           max_tokens: 1024
         },
         {
-          headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-          timeout: 20000
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          timeout: 30000
         }
       );
 
-      const rawText = openAiRes.data.choices[0]?.message?.content?.trim() || "";
-      if (jsonMode) return parseJsonFromLlm(rawText);
+      const rawText =
+        response.data?.choices?.[0]?.message?.content?.trim() || "";
+
+      if (!rawText) {
+        throw new Error("OpenAI returned an empty response.");
+      }
+
+      if (jsonMode) {
+        return parseJsonFromLlm(rawText);
+      }
+
       return rawText;
-    } catch (openAiErr) {
-      console.error("OpenAI API call failed:", openAiErr.message);
+    } catch (err) {
+      console.error(
+        "OpenAI LLM API error:",
+        err.response?.data || err.message
+      );
+
+      throw new Error("OpenAI LLM request failed.");
     }
   }
 
-  throw new Error("No backend LLM provider responded. Please check Ollama or OpenAI configuration.");
+  // ============================================================
+  // 2. LOCAL OLLAMA
+  // ============================================================
+  if (provider === "ollama") {
+    const ollamaUrl =
+      process.env.OLLAMA_URL ||
+      "http://localhost:11434/api/chat";
+
+    const model =
+      process.env.LLM_MODEL ||
+      "llama3.2:1b";
+
+    try {
+      const response = await axios.post(
+        ollamaUrl,
+        {
+          model,
+          messages,
+          options: {
+            num_predict: 1024,
+            temperature: 0.1
+          },
+          stream: false
+        },
+        {
+          timeout: 90000
+        }
+      );
+
+      const rawText =
+        response.data?.message?.content?.trim() || "";
+
+      if (!rawText) {
+        throw new Error("Ollama returned an empty response.");
+      }
+
+      if (jsonMode) {
+        return parseJsonFromLlm(rawText);
+      }
+
+      return rawText;
+    } catch (err) {
+      console.error(
+        "Ollama LLM API error:",
+        err.response?.data || err.message
+      );
+
+      throw new Error("Ollama LLM request failed.");
+    }
+  }
+
+  throw new Error(
+    `Unsupported LLM_PROVIDER: ${provider}. Use "ollama" or "openai".`
+  );
 };
+
 
 const parseJsonFromLlm = (text) => {
   if (!text) return null;

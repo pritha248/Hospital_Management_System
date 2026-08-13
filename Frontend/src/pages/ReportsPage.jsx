@@ -36,7 +36,7 @@ const ReportsPage = () => {
           fetchReleaseLettersForPatient(pat.id);
         }
       } else if (user.role === 'doctor') {
-        const pListRes = await axios.get('${API_URL}/api/patients');
+        const pListRes = await axios.get(`${API_URL}/api/patients`);
         if (pListRes.data.success) {
           setPatients(pListRes.data.data);
           if (pListRes.data.data.length > 0) {
@@ -95,7 +95,7 @@ const ReportsPage = () => {
         formData.append('reportFile', file);
       }
 
-      const res = await axios.post('${API_URL}/api/reports', formData, {
+      const res = await axios.post(`${API_URL}/api/reports`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 

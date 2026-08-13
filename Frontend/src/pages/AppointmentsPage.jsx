@@ -70,8 +70,8 @@ const AppointmentsPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const aptRes = await axios.get('${API_URL}/api/appointments');
-      const docRes = await axios.get('${API_URL}/api/doctors');
+      const aptRes = await axios.get(`${API_URL}/api/appointments`);
+      const docRes = await axios.get(`${API_URL}/api/doctors`);
 
       if (docRes.data.success) setDoctors(docRes.data.data);
 
@@ -99,7 +99,7 @@ const AppointmentsPage = () => {
 
     try {
       const targetPatientId = patientProfile ? patientProfile.id : 1;
-      const res = await axios.post('${API_URL}/api/appointments', {
+      const res = await axios.post(`${API_URL}/api/appointments`, {
         patient_id: targetPatientId,
         doctor_id: selectedDoctor,
         appointment_date: date,

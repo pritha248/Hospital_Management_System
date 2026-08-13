@@ -26,7 +26,7 @@ const AiChatbotDrawer = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post('${API_URL}/api/ai/medical-chatbot', { query: userMsg });
+      const res = await axios.post(`${API_URL}/api/ai/medical-chatbot`, { query: userMsg });
       if (res.data && res.data.success) {
         setMessages(prev => [...prev, { sender: 'ai', text: res.data.data.response }]);
       } else {

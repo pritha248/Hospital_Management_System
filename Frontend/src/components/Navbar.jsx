@@ -31,7 +31,7 @@ const Navbar = () => {
 
     try {
       setUploading(true);
-      const res = await axios.post('${API_URL}/api/auth/avatar', formData, {
+      const res = await axios.post(`${API_URL}/api/auth/avatar`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (res.data.success) {

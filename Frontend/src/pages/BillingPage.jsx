@@ -268,7 +268,7 @@ const BillingPage = () => {
     const targetPatientId = activeAdminPatientId || openInvoices[0]?.patient_id || patients[0]?.id || 15;
 
     try {
-      const res = await axios.post('${API_URL}/api/billing/claims', {
+      const res = await axios.post(`${API_URL}/api/billing/claims`, {
         patient_id: targetPatientId,
         bill_id: openInvoices[0]?.id,
         provider_name: providerName,
