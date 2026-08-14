@@ -13,10 +13,13 @@ const OLLAMA_URL =
 const OLLAMA_MODEL =
   process.env.LLM_MODEL || "llama3.2:1b";
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const GROQ_URL =
+  process.env.GROQ_URL ||
+  "https://api.groq.com/openai/v1/chat/completions";
 
-const OPENAI_MODEL =
-  process.env.OPENAI_MODEL || "gpt-4o-mini";
+const GROQ_MODEL =
+  process.env.GROQ_MODEL ||
+  "llama-3.3-70b-versatile";
 
 
 const callLlmApi = async ({ systemPrompt, prompt, jsonMode = false }) => {
@@ -26,47 +29,53 @@ const callLlmApi = async ({ systemPrompt, prompt, jsonMode = false }) => {
   ];
 
   const provider = (process.env.LLM_PROVIDER || "ollama").toLowerCase();
+  console.log("🤖 Active LLM provider:", provider);
+
+if (provider === "groq") {
+  console.log("🤖 Groq model:", GROQ_MODEL);
+  console.log("🔑 GROQ_API_KEY configured:", Boolean(process.env.GROQ_API_KEY));
+}
 
   // ============================================================
-  // 1. OPENAI
-  // ============================================================
-  if (provider === "openai") {
-    console.log("🤖 Using OpenAI provider");
-    console.log("🤖 OpenAI model:", process.env.OPENAI_MODEL);
-    console.log("📡 Sending request to OpenAI...");
-
-  if (!process.env.OPENAI_API_KEY) {
+// 1. GROQ
+// ============================================================
+if (provider === "groq") {
+  if (!process.env.GROQ_API_KEY) {
     throw new Error(
-      "LLM_PROVIDER is set to openai but OPENAI_API_KEY is missing."
+      "LLM_PROVIDER is set to groq but GROQ_API_KEY is missing."
     );
   }
 
   try {
+    console.log("⚡ Using Groq provider");
+    console.log("🤖 Groq model:", GROQ_MODEL);
+    console.log("📡 Sending request to Groq...");
+
     const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+      GROQ_URL,
       {
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: GROQ_MODEL,
         messages,
         temperature: 0.2,
         max_tokens: 1024
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
           "Content-Type": "application/json"
         },
         timeout: 30000
       }
     );
 
-    console.log("✅ OpenAI HTTP status:", response.status);
-    console.log("✅ OpenAI response received");
+    console.log("✅ Groq HTTP status:", response.status);
+    console.log("✅ Groq response received");
 
     const rawText =
       response.data?.choices?.[0]?.message?.content?.trim() || "";
 
     if (!rawText) {
-      throw new Error("OpenAI returned an empty response.");
+      throw new Error("Groq returned an empty response.");
     }
 
     if (jsonMode) {
@@ -76,16 +85,16 @@ const callLlmApi = async ({ systemPrompt, prompt, jsonMode = false }) => {
     return rawText;
   } catch (err) {
     console.error(
-      "❌ OpenAI LLM API error:",
+      "❌ Groq LLM API error:",
       err.response?.data || err.message
     );
 
-    throw new Error("OpenAI LLM request failed.");
+    throw new Error("Groq LLM request failed.");
   }
 }
 
   // ============================================================
-  // 2. LOCAL OLLAMA
+  // 3. LOCAL OLLAMA
   // ============================================================
   if (provider === "ollama") {
     const ollamaUrl =
@@ -136,7 +145,7 @@ const callLlmApi = async ({ systemPrompt, prompt, jsonMode = false }) => {
   }
 
   throw new Error(
-    `Unsupported LLM_PROVIDER: ${provider}. Use "ollama" or "openai".`
+  `Unsupported LLM_PROVIDER: ${provider}. Use "ollama" or "groq".`
   );
 };
 
@@ -479,7 +488,7 @@ const checkDrugInteractions = async (medications, patientId) => {
     }
   }
 
-  // Llama 3.2 AI Model System & User Prompt
+  // LLM System & User Prompt
   const systemPrompt = `You are an expert AI clinical pharmacology engine. Evaluate the medication list for drug-drug interactions and adverse clinical risks. Return JSON ONLY with schema:
 {
   "overallRisk": "High",
@@ -555,7 +564,7 @@ Do not write conversational text or markdown code fences. Respond strictly in JS
         interactionWarnings: warnings,
         allergyWarnings,
         overallRisk: (warnings.length > 0 || allergyWarnings.length > 0) ? (llmJson.overallRisk || "High") : "Low",
-        aiEngine: "Meta Llama 3.2 1B (llama3.2:1b) Local AI"
+        aiEngine: `Groq - ${GROQ_MODEL}`
       };
     }
   } catch (err) {
@@ -571,7 +580,7 @@ Do not write conversational text or markdown code fences. Respond strictly in JS
     interactionWarnings: [],
     allergyWarnings: [],
     overallRisk: "Low",
-    aiEngine: "Meta Llama 3.2 1B (llama3.2:1b) Local AI"
+    aiEngine: `Groq - ${GROQ_MODEL}`
   };
 };
 
