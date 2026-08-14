@@ -31,49 +31,58 @@ const callLlmApi = async ({ systemPrompt, prompt, jsonMode = false }) => {
   // 1. OPENAI
   // ============================================================
   if (provider === "openai") {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("LLM_PROVIDER is set to openai but OPENAI_API_KEY is missing.");
-    }
+    console.log("🤖 Using OpenAI provider");
+    console.log("🤖 OpenAI model:", process.env.OPENAI_MODEL);
+    console.log("📡 Sending request to OpenAI...");
 
-    try {
-      const response = await axios.post(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-          messages,
-          temperature: 0.2,
-          max_tokens: 1024
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-            "Content-Type": "application/json"
-          },
-          timeout: 30000
-        }
-      );
-
-      const rawText =
-        response.data?.choices?.[0]?.message?.content?.trim() || "";
-
-      if (!rawText) {
-        throw new Error("OpenAI returned an empty response.");
-      }
-
-      if (jsonMode) {
-        return parseJsonFromLlm(rawText);
-      }
-
-      return rawText;
-    } catch (err) {
-      console.error(
-        "OpenAI LLM API error:",
-        err.response?.data || err.message
-      );
-
-      throw new Error("OpenAI LLM request failed.");
-    }
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error(
+      "LLM_PROVIDER is set to openai but OPENAI_API_KEY is missing."
+    );
   }
+
+  try {
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        messages,
+        temperature: 0.2,
+        max_tokens: 1024
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 30000
+      }
+    );
+
+    console.log("✅ OpenAI HTTP status:", response.status);
+    console.log("✅ OpenAI response received");
+
+    const rawText =
+      response.data?.choices?.[0]?.message?.content?.trim() || "";
+
+    if (!rawText) {
+      throw new Error("OpenAI returned an empty response.");
+    }
+
+    if (jsonMode) {
+      return parseJsonFromLlm(rawText);
+    }
+
+    return rawText;
+  } catch (err) {
+    console.error(
+      "❌ OpenAI LLM API error:",
+      err.response?.data || err.message
+    );
+
+    throw new Error("OpenAI LLM request failed.");
+  }
+}
 
   // ============================================================
   // 2. LOCAL OLLAMA
