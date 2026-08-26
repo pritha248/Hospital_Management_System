@@ -2,16 +2,9 @@ const axios = require("axios");
 const db = require("../config/database");
 
 /**
- * Enterprise Backend LLM Completion Client
- *
- * Supported providers:
- * - Ollama
- * - Groq
- *
- * IMPORTANT:
- * AI-powered features do NOT use hardcoded clinical fallbacks.
- * If the AI fails, an error is thrown and the controller should
- * return an appropriate error response.
+ * ============================================================
+ * LLM CONFIGURATION
+ * ============================================================
  */
 
 const LLM_PROVIDER =
@@ -36,12 +29,12 @@ const GROQ_MODEL =
 
 /**
  * ============================================================
- * JSON PARSER
+ * PARSE JSON FROM LLM
  * ============================================================
  *
- * Handles:
+ * Supports:
  * - Pure JSON
- * - JSON inside ```json ... ```
+ * - JSON inside markdown code fences
  * - JSON surrounded by explanatory text
  * - JSON arrays
  * - JSON objects
@@ -57,23 +50,26 @@ const parseJsonFromLlm = (text) => {
     .trim();
 
   // ------------------------------------------------------------
-  // 1. Try parsing the complete response
+  // First attempt: complete response is already JSON
   // ------------------------------------------------------------
   try {
     return JSON.parse(clean);
-  } catch (e) {
+  } catch (err) {
     // Continue to extraction
   }
 
   // ------------------------------------------------------------
-  // 2. Find first JSON object or array
+  // Find first JSON object or array
   // ------------------------------------------------------------
   const firstBrace = clean.indexOf("{");
   const firstBracket = clean.indexOf("[");
 
   let startIndex = -1;
 
-  if (firstBrace === -1 && firstBracket === -1) {
+  if (
+    firstBrace === -1 &&
+    firstBracket === -1
+  ) {
     return null;
   }
 
@@ -82,17 +78,18 @@ const parseJsonFromLlm = (text) => {
   } else if (firstBracket === -1) {
     startIndex = firstBrace;
   } else {
-    startIndex = Math.min(
-      firstBrace,
-      firstBracket
-    );
+    startIndex =
+      Math.min(
+        firstBrace,
+        firstBracket
+      );
   }
 
   const isArray =
     clean[startIndex] === "[";
 
   // ------------------------------------------------------------
-  // 3. Find the final closing character
+  // Find final matching closing character
   // ------------------------------------------------------------
   const lastIndex = isArray
     ? clean.lastIndexOf("]")
@@ -105,14 +102,12 @@ const parseJsonFromLlm = (text) => {
     return null;
   }
 
-  const jsonText = clean.substring(
-    startIndex,
-    lastIndex + 1
-  );
+  const jsonText =
+    clean.substring(
+      startIndex,
+      lastIndex + 1
+    );
 
-  // ------------------------------------------------------------
-  // 4. Parse extracted JSON
-  // ------------------------------------------------------------
   try {
     return JSON.parse(jsonText);
   } catch (err) {
@@ -133,7 +128,7 @@ const parseJsonFromLlm = (text) => {
 
 /**
  * ============================================================
- * GENERIC LLM API CALL
+ * GENERIC LLM API
  * ============================================================
  */
 const callLlmApi = async ({
@@ -163,9 +158,9 @@ const callLlmApi = async ({
     provider
   );
 
-  // ============================================================
+  // ==========================================================
   // GROQ
-  // ============================================================
+  // ==========================================================
   if (provider === "groq") {
     console.log(
       "🤖 Groq model:",
@@ -192,24 +187,25 @@ const callLlmApi = async ({
         "📡 Sending request to Groq..."
       );
 
-      const response = await axios.post(
-        GROQ_URL,
-        {
-          model: GROQ_MODEL,
-          messages,
-          temperature: 0.2,
-          max_tokens: 2048
-        },
-        {
-          headers: {
-            Authorization:
-              `Bearer ${process.env.GROQ_API_KEY}`,
-            "Content-Type":
-              "application/json"
+      const response =
+        await axios.post(
+          GROQ_URL,
+          {
+            model: GROQ_MODEL,
+            messages,
+            temperature: 0.2,
+            max_tokens: 2048
           },
-          timeout: 30000
-        }
-      );
+          {
+            headers: {
+              Authorization:
+                `Bearer ${process.env.GROQ_API_KEY}`,
+              "Content-Type":
+                "application/json"
+            },
+            timeout: 30000
+          }
+        );
 
       console.log(
         "✅ Groq HTTP status:",
@@ -230,7 +226,9 @@ const callLlmApi = async ({
 
       if (jsonMode) {
         const parsed =
-          parseJsonFromLlm(rawText);
+          parseJsonFromLlm(
+            rawText
+          );
 
         if (!parsed) {
           throw new Error(
@@ -260,18 +258,10 @@ const callLlmApi = async ({
   }
 
 
-  // ============================================================
+  // ==========================================================
   // OLLAMA
-  // ============================================================
+  // ==========================================================
   if (provider === "ollama") {
-    const ollamaUrl =
-      process.env.OLLAMA_URL ||
-      "http://localhost:11434/api/chat";
-
-    const model =
-      process.env.LLM_MODEL ||
-      "llama3.2:1b";
-
     try {
       console.log(
         "⚡ Using Ollama provider"
@@ -279,28 +269,29 @@ const callLlmApi = async ({
 
       console.log(
         "🤖 Ollama model:",
-        model
+        OLLAMA_MODEL
       );
 
       console.log(
         "📡 Sending request to Ollama..."
       );
 
-      const response = await axios.post(
-        ollamaUrl,
-        {
-          model,
-          messages,
-          options: {
-            num_predict: 2048,
-            temperature: 0.1
+      const response =
+        await axios.post(
+          OLLAMA_URL,
+          {
+            model: OLLAMA_MODEL,
+            messages,
+            options: {
+              num_predict: 2048,
+              temperature: 0.1
+            },
+            stream: false
           },
-          stream: false
-        },
-        {
-          timeout: 90000
-        }
-      );
+          {
+            timeout: 90000
+          }
+        );
 
       const rawText =
         response.data
@@ -315,7 +306,9 @@ const callLlmApi = async ({
 
       if (jsonMode) {
         const parsed =
-          parseJsonFromLlm(rawText);
+          parseJsonFromLlm(
+            rawText
+          );
 
         if (!parsed) {
           throw new Error(
@@ -357,7 +350,8 @@ const summarizeHistory = async (
   patientId,
   rawText
 ) => {
-  let content = rawText || "";
+  let content =
+    rawText || "";
 
   if (patientId) {
     const [patients] =
@@ -408,9 +402,9 @@ const summarizeHistory = async (
 You are an educational medical record summarization engine.
 
 Analyze the provided patient record content and generate
-a JSON object ONLY.
+ONLY valid JSON.
 
-Format:
+Required format:
 
 {
   "executiveSummary": "Comprehensive summary of patient medical record...",
@@ -426,11 +420,11 @@ Format:
 }
 
 Rules:
-- Base the summary strictly on the supplied patient information.
+- Use only information present in the supplied record.
 - Do not invent diagnoses.
 - Do not invent allergies.
 - Do not invent medications.
-- Return valid JSON only.
+- Return JSON only.
 `;
 
   try {
@@ -476,6 +470,9 @@ Rules:
         llmJson.allergiesNoted ||
         "None noted",
 
+      generatedAt:
+        new Date().toISOString(),
+
       aiGenerated: true,
 
       aiEngine:
@@ -483,15 +480,12 @@ Rules:
           LLM_PROVIDER === "groq"
             ? GROQ_MODEL
             : OLLAMA_MODEL
-        }`,
-
-      generatedAt:
-        new Date().toISOString()
+        }`
     };
 
   } catch (err) {
     console.error(
-      "❌ Summarize history AI failure:",
+      "❌ Medical history AI failure:",
       err.message
     );
 
@@ -515,7 +509,9 @@ const predictDifferentialDiagnosis = async (
       ? symptoms
       : (symptoms || "").split(",")
   )
-    .map(s => String(s).trim())
+    .map(s =>
+      String(s).trim()
+    )
     .filter(Boolean);
 
   if (symList.length === 0) {
@@ -547,15 +543,14 @@ Return an array:
 ]
 
 Rules:
-- Generate the differential diagnosis dynamically from the provided symptoms.
+- Generate the differential diagnosis dynamically from the supplied symptoms.
 - Do not use placeholder diagnoses.
 - Do not use hardcoded conditions.
 - Do not return markdown.
 - Do not return explanations outside JSON.
-- Return at least 3 candidate conditions when clinically appropriate.
-- Probability values must be numbers between 0 and 100.
-- Do not claim certainty.
-- This is an educational decision-support output, not a definitive diagnosis.
+- Return at least 3 candidates when clinically appropriate.
+- probabilityPercentage must be between 0 and 100.
+- Do not claim diagnostic certainty.
 `;
 
   try {
@@ -620,7 +615,8 @@ Rules:
       items[0].condition;
 
     return {
-      inputSymptoms: symList,
+      inputSymptoms:
+        symList,
 
       differentialDiagnoses:
         items,
@@ -632,7 +628,8 @@ Rules:
       timestamp:
         new Date().toISOString(),
 
-      aiGenerated: true,
+      aiGenerated:
+        true,
 
       aiEngine:
         `${LLM_PROVIDER.toUpperCase()} - ${
@@ -663,18 +660,31 @@ Rules:
 const predictReadmissionRisk = async (
   patientData
 ) => {
+  const data =
+    patientData || {};
+
   const age =
-    Number(patientData?.age) || 40;
+    Number(data.age);
 
   const stayDays =
     Number(
-      patientData?.lengthOfStayDays
-    ) || 3;
+      data.lengthOfStayDays
+    );
 
   const priorAdmissions =
     Number(
-      patientData?.previousAdmissionsCount
-    ) || 0;
+      data.previousAdmissionsCount
+    );
+
+  if (
+    !Number.isFinite(age) ||
+    !Number.isFinite(stayDays) ||
+    !Number.isFinite(priorAdmissions)
+  ) {
+    throw new Error(
+      "Valid age, length of stay, and previous admissions are required."
+    );
+  }
 
   const systemPrompt = `
 You are an expert AI clinical risk analytics engine.
@@ -682,16 +692,16 @@ You are an expert AI clinical risk analytics engine.
 Evaluate the patient's 30-day hospital readmission risk
 based strictly on the supplied patient data.
 
-Respond strictly in JSON ONLY:
+Return ONLY valid JSON:
 
 {
   "riskScorePercentage": 45,
   "riskTier": "Moderate Risk of Readmission",
   "contributingFactors": [
-    "Specific factor based on the supplied patient data"
+    "Specific factor based on the supplied data"
   ],
   "preventativeActions": [
-    "Specific preventative action based on the supplied patient data"
+    "Specific preventative action based on the supplied data"
   ]
 }
 
@@ -704,11 +714,11 @@ Rules:
 `;
 
   const prompt =
-    `Evaluate 30-Day Readmission Risk:\n` +
-    `- Age: ${age} years old\n` +
-    `- Length of Stay: ${stayDays} days\n` +
-    `- Prior Admissions in Past 12 Months: ${priorAdmissions}\n\n` +
-    `Generate a dynamic risk score, risk tier, contributing factors, and preventative actions specifically for this patient profile.`;
+    `Patient Profile:\n` +
+    `Age: ${age}\n` +
+    `Length of Stay: ${stayDays} days\n` +
+    `Previous Admissions: ${priorAdmissions}\n\n` +
+    `Generate the readmission risk assessment specifically for this patient.`;
 
   try {
     const llmJson =
@@ -727,30 +737,20 @@ Rules:
       );
     }
 
-    const rawScore =
+    const score =
       Number(
         llmJson.riskScorePercentage
       );
 
     if (
-      !Number.isFinite(rawScore) ||
-      rawScore < 0 ||
-      rawScore > 100
+      !Number.isFinite(score) ||
+      score < 0 ||
+      score > 100
     ) {
       throw new Error(
         "AI returned an invalid readmission risk score."
       );
     }
-
-    const score =
-      Math.round(rawScore);
-
-    const riskTier =
-      score >= 70
-        ? "High Risk of Readmission"
-        : score >= 35
-          ? "Moderate Risk of Readmission"
-          : "Low Risk of Readmission";
 
     const factors =
       Array.isArray(
@@ -762,7 +762,6 @@ Rules:
                 typeof f === "string" &&
                 f.trim()
             )
-            .map(f => f.trim())
         : [];
 
     const actions =
@@ -775,7 +774,6 @@ Rules:
                 typeof a === "string" &&
                 a.trim()
             )
-            .map(a => a.trim())
         : [];
 
     if (factors.length === 0) {
@@ -790,8 +788,16 @@ Rules:
       );
     }
 
+    const riskTier =
+      score >= 70
+        ? "High Risk of Readmission"
+        : score >= 35
+          ? "Moderate Risk of Readmission"
+          : "Low Risk of Readmission";
+
     return {
-      riskScorePercentage: score,
+      riskScorePercentage:
+        Math.round(score),
 
       riskTier,
 
@@ -801,17 +807,18 @@ Rules:
       preventativeActions:
         actions,
 
-      aiGenerated: true,
+      evaluatedAt:
+        new Date().toISOString(),
+
+      aiGenerated:
+        true,
 
       aiEngine:
         `${LLM_PROVIDER.toUpperCase()} - ${
           LLM_PROVIDER === "groq"
             ? GROQ_MODEL
             : OLLAMA_MODEL
-        }`,
-
-      evaluatedAt:
-        new Date().toISOString()
+        }`
     };
 
   } catch (err) {
@@ -833,21 +840,20 @@ Rules:
  * ============================================================
  *
  * IMPORTANT:
- * There is NO hardcoded "safe" fallback.
+ * There is NO hardcoded "safe" response.
  *
- * If AI succeeds:
- *     return AI-generated result.
+ * The function either:
  *
- * If AI fails:
- *     throw error.
+ * 1. Returns the AI-generated analysis
+ *
+ * OR
+ *
+ * 2. Throws an error.
  */
 const checkDrugInteractions = async (
   medications,
   patientId
 ) => {
-  // ------------------------------------------------------------
-  // Normalize medication list
-  // ------------------------------------------------------------
   const newMedList = (
     Array.isArray(medications)
       ? medications
@@ -860,20 +866,22 @@ const checkDrugInteractions = async (
     )
     .filter(Boolean);
 
-  if (newMedList.length === 0) {
+  if (
+    newMedList.length === 0
+  ) {
     throw new Error(
       "At least one medication is required."
     );
   }
 
-  // ------------------------------------------------------------
-  // Patient context
-  // ------------------------------------------------------------
   let priorMedsList = [];
 
   let patientAllergies =
     "None documented";
 
+  // ------------------------------------------------------------
+  // Get patient context
+  // ------------------------------------------------------------
   if (patientId) {
     try {
       const [patients] =
@@ -910,7 +918,7 @@ const checkDrugInteractions = async (
           try {
             parsed =
               JSON.parse(parsed);
-          } catch (e) {
+          } catch (err) {
             console.warn(
               "Could not parse previous prescription medicines."
             );
@@ -944,7 +952,7 @@ const checkDrugInteractions = async (
 
     } catch (err) {
       console.error(
-        "❌ Error fetching patient medication context:",
+        "❌ Error fetching patient context:",
         err.message
       );
 
@@ -955,7 +963,7 @@ const checkDrugInteractions = async (
   }
 
   // ------------------------------------------------------------
-  // AI System Prompt
+  // AI prompt
   // ------------------------------------------------------------
   const systemPrompt = `
 You are an expert AI clinical pharmacology engine.
@@ -992,9 +1000,9 @@ Rules:
 - Do not invent medications.
 - Do not use placeholder data.
 - Do not return hardcoded generic results.
-- If there are no clinically significant interactions, return an empty interactionWarnings array.
-- overallRisk must be exactly one of:
-  "Low", "Moderate", "High".
+- If no clinically significant drug interaction exists, return an empty interactionWarnings array.
+- overallRisk must be exactly:
+  "Low", "Moderate", or "High".
 - isSafe must be true only when there are no clinically significant risks.
 - Return valid JSON only.
 - Do not return markdown.
@@ -1004,7 +1012,7 @@ Rules:
 
   const prompt =
     `Newly Prescribed Medications: ` +
-    `${newMedList.join(", ") || "None"}\n\n` +
+    `${newMedList.join(", ")}\n\n` +
 
     `Patient Prior Active Medications: ` +
     `${priorMedsList.join(", ") || "None"}\n\n` +
@@ -1016,9 +1024,6 @@ Rules:
     `contraindications, adverse clinical risks, ` +
     `and allergy hazards.`;
 
-  // ------------------------------------------------------------
-  // CALL AI
-  // ------------------------------------------------------------
   try {
     console.log(
       "🤖 Starting AI drug interaction analysis..."
@@ -1042,7 +1047,7 @@ Rules:
       });
 
     // ----------------------------------------------------------
-    // Validate AI response
+    // Validate AI result
     // ----------------------------------------------------------
     if (
       !llmJson ||
@@ -1054,9 +1059,6 @@ Rules:
       );
     }
 
-    // ----------------------------------------------------------
-    // Validate risk
-    // ----------------------------------------------------------
     const allowedRisks = [
       "Low",
       "Moderate",
@@ -1077,7 +1079,7 @@ Rules:
       llmJson.overallRisk;
 
     // ----------------------------------------------------------
-    // Extract interaction warnings
+    // Extract AI interaction warnings
     // ----------------------------------------------------------
     const rawWarnings =
       llmJson.interactionWarnings ||
@@ -1175,7 +1177,8 @@ Rules:
             allergyMatch:
               patientAllergies,
 
-            severity: "High",
+            severity:
+              "High",
 
             description:
               `Documented patient allergy may match '${med}'.`
@@ -1185,7 +1188,7 @@ Rules:
     }
 
     // ----------------------------------------------------------
-    // Determine final safety
+    // Final safety result
     // ----------------------------------------------------------
     const isSafe =
       warnings.length === 0 &&
@@ -1194,7 +1197,12 @@ Rules:
       overallRisk === "Low";
 
     // ----------------------------------------------------------
-    // RETURN THE ACTUAL AI RESULT
+    // IMPORTANT:
+    // RETURN THE ACTUAL AI RESULT.
+    //
+    // There is NO hardcoded:
+    // isSafe: true
+    // overallRisk: "Low"
     // ----------------------------------------------------------
     return {
       medicationsEvaluated:
@@ -1219,7 +1227,8 @@ Rules:
         llmJson.interactionSummary ||
         "AI-generated medication interaction analysis completed.",
 
-      aiGenerated: true,
+      aiGenerated:
+        true,
 
       aiEngine:
         `${LLM_PROVIDER.toUpperCase()} - ${
@@ -1238,9 +1247,7 @@ Rules:
       err.message
     );
 
-    // ----------------------------------------------------------
     // NO FALLBACK.
-    // ----------------------------------------------------------
     throw new Error(
       `AI drug interaction analysis unavailable: ${err.message}`
     );
@@ -1257,7 +1264,7 @@ const medicalChatbot = async (
   query
 ) => {
   const userQuery =
-    (query || "").trim();
+    String(query || "").trim();
 
   if (!userQuery) {
     throw new Error(
@@ -1277,7 +1284,7 @@ Use clear bullet points where appropriate.
 Do not include markdown code fences.
 
 Clearly distinguish general educational information
-from a definitive medical diagnosis.
+from a definitive diagnosis.
 
 Do not invent patient-specific information.
 `;
@@ -1300,7 +1307,8 @@ Do not invent patient-specific information.
     }
 
     return {
-      query: userQuery,
+      query:
+        userQuery,
 
       response:
         llmResponse,
@@ -1312,17 +1320,18 @@ Do not invent patient-specific information.
         "Report OCR"
       ],
 
-      aiGenerated: true,
+      timestamp:
+        new Date().toISOString(),
+
+      aiGenerated:
+        true,
 
       aiEngine:
         `${LLM_PROVIDER.toUpperCase()} - ${
           LLM_PROVIDER === "groq"
             ? GROQ_MODEL
             : OLLAMA_MODEL
-        }`,
-
-      timestamp:
-        new Date().toISOString()
+        }`
     };
 
   } catch (err) {
@@ -1331,7 +1340,7 @@ Do not invent patient-specific information.
       err.message
     );
 
-    // NO hardcoded clinical response.
+    // NO HARDCODED CHATBOT RESPONSE.
     throw new Error(
       `AI medical chatbot unavailable: ${err.message}`
     );
@@ -1343,9 +1352,6 @@ Do not invent patient-specific information.
  * ============================================================
  * 6. REPORT OCR & CLINICAL METRICS EXTRACTOR
  * ============================================================
- *
- * This function currently performs deterministic extraction
- * from supplied OCR text. It is not an LLM-generated feature.
  */
 const ocrExtractReport = async (
   rawText
