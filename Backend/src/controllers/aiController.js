@@ -1,37 +1,90 @@
 const aiService = require("../services/aiService");
 
-const summarizeHistory = async (req, res, next) => {
-  try {
-    const { patientId, text } = req.body;
 
-    const result = await aiService.summarizeHistory(
+/**
+ * ============================================================
+ * MEDICAL HISTORY SUMMARIZATION
+ * ============================================================
+ */
+const summarizeHistory = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
       patientId,
       text
-    );
+    } = req.body;
 
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-const predictDifferentialDiagnosis = async (req, res, next) => {
-  try {
-    const { symptoms } = req.body;
-
-    if (!symptoms || !String(symptoms).trim()) {
+    if (
+      !text ||
+      !String(text).trim()
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Symptoms are required."
+        message:
+          "Medical history text is required."
       });
     }
 
     const result =
-      await aiService.predictDifferentialDiagnosis(symptoms);
+      await aiService.summarizeHistory(
+        patientId,
+        text
+      );
+
+    return res.status(200).json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error(
+      "Medical history controller error:",
+      error
+    );
+
+    return res.status(503).json({
+      success: false,
+      message:
+        error.message ||
+        "AI medical history service unavailable."
+    });
+  }
+};
+
+
+/**
+ * ============================================================
+ * DIFFERENTIAL DIAGNOSIS
+ * ============================================================
+ */
+const predictDifferentialDiagnosis = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
+      symptoms
+    } = req.body;
+
+    if (
+      !symptoms ||
+      !String(symptoms).trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Symptoms are required."
+      });
+    }
+
+    const result =
+      await aiService.predictDifferentialDiagnosis(
+        symptoms
+      );
 
     return res.status(200).json({
       success: true,
@@ -54,35 +107,74 @@ const predictDifferentialDiagnosis = async (req, res, next) => {
 };
 
 
-const predictReadmissionRisk = async (req, res, next) => {
+/**
+ * ============================================================
+ * READMISSION RISK
+ * ============================================================
+ */
+const predictReadmissionRisk = async (
+  req,
+  res,
+  next
+) => {
   try {
     const result =
-      await aiService.predictReadmissionRisk(req.body);
+      await aiService.predictReadmissionRisk(
+        req.body
+      );
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result
     });
+
   } catch (error) {
-    next(error);
+    console.error(
+      "Readmission risk controller error:",
+      error
+    );
+
+    return res.status(503).json({
+      success: false,
+      message:
+        error.message ||
+        "AI readmission risk service unavailable."
+    });
   }
 };
 
 
-const checkDrugInteractions = async (req, res, next) => {
+/**
+ * ============================================================
+ * DRUG INTERACTION CHECK
+ * ============================================================
+ */
+const checkDrugInteractions = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const { medications, patientId } = req.body;
+    const {
+      medications,
+      patientId
+    } = req.body;
 
     if (
       !medications ||
       (
         Array.isArray(medications) &&
         medications.length === 0
+      ) ||
+      (
+        typeof medications === "string" &&
+        !medications.trim()
       )
     ) {
       return res.status(400).json({
         success: false,
-        message: "At least one medication is required."
+        message:
+          "At least one medication is required."
       });
     }
 
@@ -113,54 +205,115 @@ const checkDrugInteractions = async (req, res, next) => {
 };
 
 
-const medicalChatbot = async (req, res, next) => {
+/**
+ * ============================================================
+ * MEDICAL CHATBOT
+ * ============================================================
+ */
+const medicalChatbot = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const { query } = req.body;
+    const {
+      query
+    } = req.body;
 
-    if (!query || !String(query).trim()) {
+    if (
+      !query ||
+      !String(query).trim()
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Query is required."
+        message:
+          "Medical question is required."
       });
     }
 
     const result =
-      await aiService.medicalChatbot(query);
+      await aiService.medicalChatbot(
+        query
+      );
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result
     });
+
   } catch (error) {
-    next(error);
+    console.error(
+      "Medical chatbot controller error:",
+      error
+    );
+
+    return res.status(503).json({
+      success: false,
+      message:
+        error.message ||
+        "AI medical chatbot service is unavailable."
+    });
   }
 };
 
 
-const ocrExtractReport = async (req, res, next) => {
+/**
+ * ============================================================
+ * OCR REPORT EXTRACTION
+ * ============================================================
+ */
+const ocrExtractReport = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const { text } = req.body;
+    const {
+      text
+    } = req.body;
 
-    if (!text || !String(text).trim()) {
+    if (
+      !text ||
+      !String(text).trim()
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Report text is required."
+        message:
+          "Report text is required."
       });
     }
 
     const result =
-      await aiService.ocrExtractReport(text);
+      await aiService.ocrExtractReport(
+        text
+      );
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result
     });
+
   } catch (error) {
-    next(error);
+    console.error(
+      "OCR report controller error:",
+      error
+    );
+
+    return res.status(503).json({
+      success: false,
+      message:
+        error.message ||
+        "OCR report extraction service unavailable."
+    });
   }
 };
 
 
+/**
+ * ============================================================
+ * EXPORTS
+ * ============================================================
+ */
 module.exports = {
   summarizeHistory,
   predictDifferentialDiagnosis,
