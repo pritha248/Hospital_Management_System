@@ -10,7 +10,7 @@ The application follows a **backend-authoritative architecture**, where security
 
 Anyone who wants to see the deployed website can visit:
 
-https://hospital-management-system-2-wpf1.onrender.com
+https://hospital-management-system-2tf2.vercel.app
 
 The website is deployed online and can be accessed directly from a web browser.
 
