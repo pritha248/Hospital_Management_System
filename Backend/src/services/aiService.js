@@ -258,14 +258,27 @@ Format:
  * 2. Differential Diagnosis Suggestion Engine (100% LLM Generated)
  */
 const predictDifferentialDiagnosis = async (symptoms) => {
-  const symList = (Array.isArray(symptoms) ? symptoms : (symptoms || "").split(","))
+  const symList = (
+    Array.isArray(symptoms)
+      ? symptoms
+      : (symptoms || "").split(",")
+  )
     .map(s => s.trim())
     .filter(Boolean);
 
+  if (symList.length === 0) {
+    throw new Error("At least one symptom is required.");
+  }
+
   const symptomsText = symList.join(", ");
 
-  const systemPrompt = `You are an educational medical research database assistant. Evaluate symptom patterns and return JSON ONLY: an array of candidate differential condition objects. 
-Format:
+  const systemPrompt = `
+You are an educational medical research database assistant.
+
+Evaluate the provided symptoms and return ONLY valid JSON.
+
+Return an array:
+
 [
   {
     "condition": "Condition Name",
@@ -274,7 +287,15 @@ Format:
     "recommendedTests": ["Test A", "Test B"]
   }
 ]
-Do not add conversational markdown text or disclaimers. Respond strictly in JSON format.`;
+
+Rules:
+- Generate the differential diagnosis dynamically from the provided symptoms.
+- Do not use placeholder diagnoses.
+- Do not use hardcoded conditions.
+- Do not return markdown.
+- Do not return explanations outside JSON.
+- Return at least 3 candidate conditions when clinically appropriate.
+`;
 
   try {
     const rawResult = await callLlmApi({
@@ -283,34 +304,50 @@ Do not add conversational markdown text or disclaimers. Respond strictly in JSON
       jsonMode: true
     });
 
-    let items = Array.isArray(rawResult) ? rawResult : (rawResult && Array.isArray(rawResult.differentialDiagnoses) ? rawResult.differentialDiagnoses : []);
-
-    if (items.length > 0) {
-      const topCondition = items[0]?.condition || "Condition Assessment";
-      return {
-        inputSymptoms: symList,
-        differentialDiagnoses: items,
-        primaryRecommendation: `Primary Candidate: ${topCondition} (${items[0]?.probabilityPercentage || 80}% confidence). Recommended test: ${items[0]?.recommendedTests?.[0] || "Diagnostic Workup"}.`,
-        timestamp: new Date().toISOString()
-      };
+    if (!Array.isArray(rawResult) || rawResult.length === 0) {
+      throw new Error("AI returned an invalid differential diagnosis.");
     }
-  } catch (err) {
-    console.error("Differential diagnosis LLM failure:", err.message);
-  }
 
-  return {
-    inputSymptoms: symList,
-    differentialDiagnoses: [
-      {
-        condition: `Clinical Evaluation of ${symptomsText}`,
-        probabilityPercentage: 80,
-        urgencyLevel: "Moderate",
-        recommendedTests: ["Complete Blood Count (CBC)", "Physician Assessment"]
-      }
-    ],
-    primaryRecommendation: `Clinical assessment for ${symptomsText}. Perform diagnostic workup.`,
-    timestamp: new Date().toISOString()
-  };
+    const items = rawResult
+      .filter(item =>
+        item &&
+        typeof item.condition === "string" &&
+        item.condition.trim()
+      )
+      .map(item => ({
+        condition: item.condition.trim(),
+        probabilityPercentage: Number(item.probabilityPercentage) || 0,
+        urgencyLevel: item.urgencyLevel || "Moderate",
+        recommendedTests: Array.isArray(item.recommendedTests)
+          ? item.recommendedTests
+          : []
+      }));
+
+    if (items.length === 0) {
+      throw new Error("AI returned no valid diagnosis candidates.");
+    }
+
+    const topCondition = items[0].condition;
+
+    return {
+      inputSymptoms: symList,
+      differentialDiagnoses: items,
+      primaryRecommendation:
+        `Primary Candidate: ${topCondition} (${items[0].probabilityPercentage}% confidence).`,
+      timestamp: new Date().toISOString(),
+      aiGenerated: true
+    };
+
+  } catch (err) {
+    console.error(
+      "Differential diagnosis AI failure:",
+      err
+    );
+
+    throw new Error(
+      `AI differential diagnosis unavailable: ${err.message}`
+    );
+  }
 };
 
 /**
@@ -555,20 +592,11 @@ Do not write conversational text or markdown code fences. Respond strictly in JS
       }
 
       const isSafe = warnings.length === 0 && allergyWarnings.length === 0 && llmJson.isSafe !== false && llmJson.overallRisk !== "High" && llmJson.overallRisk !== "Moderate";
-
-      return {
-        medicationsEvaluated: newMedList,
-        newMedicationsEvaluated: newMedList,
-        priorMedicationsOnRecord: priorMedsList,
-        isSafe,
-        interactionWarnings: warnings,
-        allergyWarnings,
-        overallRisk: (warnings.length > 0 || allergyWarnings.length > 0) ? (llmJson.overallRisk || "High") : "Low",
-        aiEngine: `Groq - ${GROQ_MODEL}`
-      };
     }
   } catch (err) {
-    console.error("Llama 3.2 AI Drug interaction execution error:", err.message);
+    console.error("AI Drug interaction execution error:", err.message);
+    throw new Error(
+    `AI drug interaction analysis unavailable: ${err.message}`);
   }
 
   // Backup fallback if Ollama service is unreachable
