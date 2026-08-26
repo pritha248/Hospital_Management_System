@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_URL from '../config/api';
 import { 
   Users, UserCheck, Calendar, FileText, Activity, Sparkles, 
-  Clock, Plus, ShieldAlert, HeartPulse, Stethoscope, ArrowRight, CheckCircle2, Edit3, DollarSign, Trash2 
+  Clock, Plus, ShieldAlert, HeartPulse, Stethoscope, ArrowRight, CheckCircle2, Edit3, DollarSign 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DaySelector from '../components/DaySelector';
@@ -177,25 +177,6 @@ const Dashboard = () => {
            d.getDate() === today.getDate();
   };
 
-  const handleDeletePatientAccount = async () => {
-    const targetId = patientData?.id || user?.id;
-    if (!targetId) return;
-    const confirmMsg = "WARNING: Are you sure you want to delete your account?\n\nThis will PERMANENTLY ERASE your health profile, appointments, prescriptions, billing records, and medical files from the entire hospital database for doctors, admins, and patients.";
-    if (!window.confirm(confirmMsg)) return;
-
-    try {
-      const res = await axios.delete(`${API_URL}/api/patients/${targetId}`);
-      if (res.data.success) {
-        alert("Your patient account and all associated health records have been permanently deleted.");
-        logout();
-        navigate('/login');
-      }
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Failed to delete patient account.";
-      alert(msg);
-    }
-  };
-
   const handleAdminDeletePatient = async (patientId, patientName) => {
     const confirmMsg = `WARNING: Are you sure you want to delete patient "${patientName}" (ID: PAT-${patientId})?\n\nThis will PERMANENTLY PURGE their profile, appointments, prescriptions, billing records, and medical files from the hospital EMR system.`;
     if (!window.confirm(confirmMsg)) return;
@@ -259,32 +240,12 @@ const Dashboard = () => {
 
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
             {user.role === 'patient' && (
-              <>
-                <button onClick={() => setShowPatientEdit(true)} className="btn btn-secondary">
-                  <Edit3 size={16} /> Edit Health Record
-                </button>
-                <button 
-                  onClick={handleDeletePatientAccount} 
-                  className="btn btn-danger" 
-                  style={{ 
-                    padding: '0.55rem 1.1rem', 
-                    fontSize: '0.88rem', 
-                    fontWeight: 700, 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '0.45rem', 
-                    background: '#dc2626', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '10px', 
-                    cursor: 'pointer', 
-                    boxShadow: '0 4px 14px rgba(220, 38, 38, 0.45)' 
-                  }}
-                  title="Permanently erase all details and patient records from database"
-                >
-                  <Trash2 size={16} /> Delete Patient Account
-                </button>
-              </>
+              <button
+                onClick={() => setShowPatientEdit(true)}
+                className="btn btn-secondary"
+              >
+                <Edit3 size={16} /> Edit Health Record
+              </button>
             )}
             {user.role === 'doctor' && (
               <>
