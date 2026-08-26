@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_URL from '../config/api';
 import { 
   Users, UserCheck, Calendar, FileText, Activity, Sparkles, 
-  Clock, Plus, ShieldAlert, HeartPulse, Stethoscope, ArrowRight, CheckCircle2, Edit3, DollarSign 
+  Clock, Plus, ShieldAlert, HeartPulse, Stethoscope, ArrowRight, CheckCircle2, Edit3, DollarSign, Trash2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DaySelector from '../components/DaySelector';
