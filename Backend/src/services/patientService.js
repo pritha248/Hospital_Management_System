@@ -91,90 +91,9 @@ const updatePatient = async (id, data) => {
   return { id, ...data };
 };
 
-const deletePatient = async (id) => {
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-
-    // 1. Resolve Patient ID and User ID
-    const [pRows] = await connection.query("SELECT id, user_id FROM patients WHERE id = ? OR user_id = ?", [id, id]);
-    if (pRows.length === 0) {
-      const [uRows] = await connection.query("SELECT id FROM users WHERE id = ?", [id]);
-      if (uRows.length > 0) {
-        await connection.query("DELETE FROM users WHERE id = ?", [id]);
-        await connection.commit();
-        connection.release();
-        return { id, message: "User account purged successfully." };
-      }
-      connection.release();
-      const err = new Error("Patient record not found.");
-      err.statusCode = 404;
-      throw err;
-    }
-
-    const patientId = pRows[0].id;
-    const userId = pRows[0].user_id;
-
-    // 2. Active Appointment Check
-    // Check if any appointment for this patient is not Completed or Cancelled (e.g. pending, confirmed, in_consultation)
-    const [activeApts] = await connection.query(
-      "SELECT * FROM appointments WHERE patient_id = ? AND status NOT IN ('completed', 'cancelled')",
-      [patientId]
-    );
-
-    if (activeApts.length > 0) {
-      await connection.rollback();
-      connection.release();
-      const err = new Error("You have an active appointment. Complete or cancel it before deleting your account.");
-      err.statusCode = 400;
-      throw err;
-    }
-
-    // 3. Unpaid Bill Check (Check for actual remaining payable balance > 0)
-    const [unpaidBills] = await connection.query(
-      "SELECT * FROM bills WHERE patient_id = ? AND status != 'paid' AND COALESCE(patient_payable, total_amount) > 0",
-      [patientId]
-    );
-
-    if (unpaidBills.length > 0) {
-      const totalUnpaid = unpaidBills.reduce((acc, b) => acc + parseFloat(b.patient_payable !== null ? b.patient_payable : b.total_amount), 0);
-      if (totalUnpaid > 0) {
-        await connection.rollback();
-        connection.release();
-        const err = new Error(`Your account cannot be deleted because you have an unpaid balance of $${totalUnpaid.toFixed(2)}. Please complete all pending payments first.`);
-        err.statusCode = 400;
-        throw err;
-      }
-    }
-
-    // 4. Perform complete transactional purge in correct dependency order
-    await connection.query("DELETE FROM hospitalizations WHERE patient_id = ?", [patientId]);
-    await connection.query("DELETE FROM bill_audit_logs WHERE bill_id IN (SELECT id FROM bills WHERE patient_id = ?) OR user_id = ?", [patientId, userId || 0]);
-    await connection.query("DELETE FROM insurance_claims WHERE patient_id = ?", [patientId]);
-    await connection.query("DELETE FROM bills WHERE patient_id = ?", [patientId]);
-    await connection.query("DELETE FROM prescriptions WHERE patient_id = ?", [patientId]);
-    await connection.query("DELETE FROM appointments WHERE patient_id = ?", [patientId]);
-    await connection.query("DELETE FROM medical_reports WHERE patient_id = ?", [patientId]);
-    await connection.query("DELETE FROM patients WHERE id = ?", [patientId]);
-
-    if (userId) {
-      await connection.query("DELETE FROM users WHERE id = ?", [userId]);
-    }
-
-    await connection.commit();
-    connection.release();
-    return { id: patientId, message: "Patient profile, user credentials, and all health records purged successfully." };
-  } catch (err) {
-    await connection.rollback();
-    connection.release();
-    throw err;
-  }
-};
-
 module.exports = {
   getAllPatients,
   getPatientById,
   createPatient,
-  updatePatient,
-  deletePatient
+  updatePatient
 };
