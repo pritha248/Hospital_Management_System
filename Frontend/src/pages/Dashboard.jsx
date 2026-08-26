@@ -177,22 +177,6 @@ const Dashboard = () => {
            d.getDate() === today.getDate();
   };
 
-  const handleAdminDeletePatient = async (patientId, patientName) => {
-    const confirmMsg = `WARNING: Are you sure you want to delete patient "${patientName}" (ID: PAT-${patientId})?\n\nThis will PERMANENTLY PURGE their profile, appointments, prescriptions, billing records, and medical files from the hospital EMR system.`;
-    if (!window.confirm(confirmMsg)) return;
-
-    try {
-      const res = await axios.delete(`${API_URL}/api/patients/${patientId}`);
-      if (res.data.success) {
-        alert(`Patient "${patientName}" and all associated health records have been permanently deleted.`);
-        fetchDashboardData();
-      }
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Failed to delete patient account.";
-      alert(msg);
-    }
-  };
-
   const handleDeleteDoctorAccount = async () => {
     if (!doctorData) return;
     const confirmMsg = "WARNING: Are you sure you want to delete your doctor profile and user account?\n\nThis will PERMANENTLY ERASE your doctor profile, appointments, and prescriptions from the hospital database.";
@@ -584,7 +568,6 @@ const Dashboard = () => {
                     <th>Age / Gender</th>
                     <th>Blood Group</th>
                     <th>Medical History / Allergies</th>
-                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -601,33 +584,11 @@ const Dashboard = () => {
                         <td style={{ maxWidth: '260px', whiteSpace: 'truncate' }} title={pat.history || ''}>
                           {pat.history || 'No prior chronic conditions.'}
                         </td>
-                        <td>
-                          <button 
-                            onClick={() => handleAdminDeletePatient(pat.id, pat.name)} 
-                            className="btn btn-danger" 
-                            style={{ 
-                              padding: '0.3rem 0.65rem', 
-                              fontSize: '0.75rem', 
-                              fontWeight: 700, 
-                              display: 'inline-flex', 
-                              alignItems: 'center', 
-                              gap: '0.35rem', 
-                              background: '#dc2626', 
-                              color: 'white', 
-                              border: 'none', 
-                              borderRadius: '6px', 
-                              cursor: 'pointer' 
-                            }}
-                            title="Purge patient record, credentials, and all health files"
-                          >
-                            <Trash2 size={13} /> Delete Patient
-                          </button>
-                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>
+                      <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>
                         No registered patients found in hospital database.
                       </td>
                     </tr>
