@@ -39,16 +39,5 @@ const update = async (req, res, next) => {
   }
 };
 
-const remove = async (req, res, next) => {
-  try {
-    const data = await patientService.deletePatient(req.params.id);
-    res.json({ success: true, message: data.message || "Patient deleted successfully" });
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ success: false, message: error.message });
-    }
-    next(error);
-  }
-};
 
-module.exports = { getAll, getById, create, update, remove };
+module.exports = { getAll, getById, create, update };
